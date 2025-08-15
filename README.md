@@ -1,27 +1,27 @@
-# snippets #
+# snippetserver #
 
 Een eerste aanzet voor een snippetserver, nu voor alto.xml.
 
 ## Starten ## 
 
-"""
+```bash
 uvicorn main:app --host 127.0.0.1 --port 8000 --reload
-"""
+```
 
 ## Testen ##
 
-"""
+```bash
 curl --silent -i -X POST http://127.0.0.1:8000/snippet   -H 'Content-Type: application/json'   -d '{"url":"https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/031/nl-wbdrazu-k50907905-689-31947.alto.xml","q":"belastingen"}'
-"""
+```
 
 ## Responses ##
 
 
 200
 
-"""
+```json
 { "html": "… de <em>Amerong</em>sche Courant …" }
-"""
+```
 
 204 — geen hit gevonden
 
@@ -32,7 +32,7 @@ curl --silent -i -X POST http://127.0.0.1:8000/snippet   -H 'Content-Type: appli
 
 ## Nginx (rate-limit + CORS) ##
 
-"""
+```nginx
 # http {}
 limit_req_zone $binary_remote_addr zone=snip:10m rate=5r/s;
 
@@ -45,7 +45,7 @@ location /snippet {
   if ($request_method = OPTIONS) { return 204; }
 }
 
-"""   
+```   
 
 ### Deploy tips (kort) ###
 
