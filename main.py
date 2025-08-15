@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, HttpUrl
 import requests, re, html
 from lxml import etree
+from typing import Optional
 
 app = FastAPI()
 
@@ -25,13 +26,12 @@ def _localname(tag: str) -> str:
     # strip XML-namespace
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag
 
-@app.post("/snippet")
-def snippet(req: SnipReq):
-    pat = _compile_pattern(req.q)
+def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
+    pat = _compile_pattern(q)
 
     try:
         r = requests.get(
-            req.url, timeout=12, stream=True,
+            url, timeout=12, stream=True,
             headers={"Accept-Encoding": "gzip, deflate, br"}
         )
     except requests.RequestException:
@@ -69,11 +69,11 @@ def snippet(req: SnipReq):
 
                 m = pat.search(text)
                 if m:
-                    s = max(0, m.start() - req.context)
-                    e = min(len(text), m.end() + req.context)
+                    s = max(0, m.start() - context)
+                    e = min(len(text), m.end() + context)
                     pre, hit, post = text[s:m.start()], text[m.start():m.end()], text[m.end():e]
                     html_snip = f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}"
-                    return {"html": html_snip}
+                    return html_snip
 
                 buf = []
                 elem.clear()
@@ -81,4 +81,18 @@ def snippet(req: SnipReq):
     except etree.XMLSyntaxError:
         raise HTTPException(502, "Parse error")
 
-    return Response(status_code=204)
+    return None
+
+@app.post("/snippet")
+def snippet(req: SnipReq):
+    html_snip = _find_snippet(req.url, req.q, req.context)
+    if html_snip is None:
+        return Response(status_code=204)
+    return {"html": html_snip}
+
+@app.get("/snippet")
+def snippet_get(url: HttpUrl, q: str, context: int = 70):
+    html_snip = _find_snippet(url, q, context)
+    if html_snip is None:
+        return Response(status_code=204)
+    return Response(content=html_snip, media_type="text/html")

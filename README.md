@@ -2,16 +2,36 @@
 
 Een eerste aanzet voor een snippetserver, nu voor alto.xml.
 
+## Installatie ##
+
+Gebruik een virtualenv:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+venv/bin/python -m pip install -U pip
+venv/bin/python -m pip install -r requirements.txt
+```
+
 ## Starten ## 
 
 ```bash
-uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ## Testen ##
 
 ```bash
-curl --silent -i -X POST http://127.0.0.1:8000/snippet   -H 'Content-Type: application/json'   -d '{"url":"https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/031/nl-wbdrazu-k50907905-689-31947.alto.xml","q":"belastingen"}'
+# GET (HTMX-vriendelijk, HTML response)
+curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
+  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/031/nl-wbdrazu-k50907905-689-31947.alto.xml' \
+  --data-urlencode 'q=belastingen' \
+  --data-urlencode 'context=70'
+
+# POST (JSON response {"html": "..."})
+curl --silent -i -X POST http://127.0.0.1:8000/snippet \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/031/nl-wbdrazu-k50907905-689-31947.alto.xml","q":"belastingen"}'
 ```
 
 ## Responses ##
@@ -29,6 +49,31 @@ curl --silent -i -X POST http://127.0.0.1:8000/snippet   -H 'Content-Type: appli
 
 502 — upstream/parse-fout
 
+
+## HTMX ##
+
+Voorbeeld gebruik met GET die direct HTML terugstuurt:
+
+```html
+<div id="snippet"
+     hx-get="/snippet"
+     hx-vals='{"url": "https://…/file.alto.xml", "q": "term*", "context": 70}'
+     hx-trigger="load"
+     hx-target="#snippet"
+     hx-swap="innerHTML">
+  Snippet wordt geladen…
+</div>
+```
+
+Of via query parameters:
+
+```html
+<div id="snippet"
+     hx-get="/snippet?url=https%3A%2F%2F…%2Ffile.alto.xml&q=term*&context=70"
+     hx-trigger="load"
+     hx-target="#snippet"
+     hx-swap="innerHTML"></div>
+```
 
 ## Nginx (rate-limit + CORS) ##
 
@@ -50,7 +95,4 @@ location /snippet {
 ### Deploy tips (kort) ###
 
 Productie:
-`uvicorn main:app --host 127.0.0.1 --port 8000 --workers 2`
-
-Zet HTTP compressie aan voor ALTO aan de bron/CDN.
-Frontend: laad snippets lazy (IntersectionObserver), individuele calls.
+`venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 2`
