@@ -20,7 +20,7 @@ curl --silent -i -X POST http://127.0.0.1:8000/snippet   -H 'Content-Type: appli
 200
 
 ```json
-{ "html": "… de <em>Amerong</em>sche Courant …" }
+{ "html": "9 Aug „25 Ocht. 5, ge knipt den staat der Rijksmiddelen bevattende de <em>belastingen</em> door het Rijk ontvangen in de afge loopen 7 maanden van 1925 èn gespe" }
 ```
 
 204 — geen hit gevonden
