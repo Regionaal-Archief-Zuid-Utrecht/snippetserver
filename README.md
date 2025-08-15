@@ -19,6 +19,25 @@ venv/bin/python -m pip install -r requirements.txt
 venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
+## Configuratie ##
+
+Sta alleen requests toe naar bepaalde domeinen (security):
+
+- Omgevingsvariabele: `ALLOWED_HOSTS` (comma-separated)
+
+Voorbeelden:
+
+```bash
+# Alleen opslag.razu.nl en subdomeinen
+export ALLOWED_HOSTS=opslag.razu.nl
+
+# Meerdere domeinen toestaan
+export ALLOWED_HOSTS=opslag.razu.nl,example.org
+
+# Start daarna
+venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+```
+
 ## Testen ##
 
 ```bash
@@ -45,7 +64,7 @@ curl --silent -i -X POST http://127.0.0.1:8000/snippet \
 
 204 — geen hit gevonden
 
-403 — ALTO niet public-read / 404 upstream
+403 — ALTO niet public-read / 404 upstream, of domein niet toegestaan (Domain not allowed)
 
 502 — upstream/parse-fout
 

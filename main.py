@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, HttpUrl
-import requests, re, html
+import requests, re, html, os
 from lxml import etree
-from typing import Optional
+from typing import Optional, List
+from urllib.parse import urlparse
 
 app = FastAPI()
 
@@ -52,8 +53,30 @@ def _localname(tag: str) -> str:
     # strip XML-namespace
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag
 
+def _load_allowed_hosts() -> List[str]:
+    # Comma-separated env var; default to opslag.razu.nl
+    raw = os.getenv("ALLOWED_HOSTS", "opslag.razu.nl")
+    hosts = [h.strip().lower() for h in raw.split(",") if h.strip()]
+    return hosts
+
+ALLOWED_HOSTS = _load_allowed_hosts()
+
+def _host_allowed(host: Optional[str]) -> bool:
+    if not host:
+        return False
+    host = host.lower()
+    for allowed in ALLOWED_HOSTS:
+        if host == allowed or host.endswith("." + allowed):
+            return True
+    return False
+
 def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
     pat = _compile_pattern(q)
+
+    # Security: restrict to configured domains
+    host = urlparse(str(url)).hostname
+    if not _host_allowed(host):
+        raise HTTPException(403, "Domain not allowed")
 
     try:
         r = requests.get(
