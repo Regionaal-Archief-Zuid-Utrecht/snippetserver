@@ -12,15 +12,41 @@ class SnipReq(BaseModel):
     context: int = 70  # tekens links/rechts (MVP)
 
 def _compile_pattern(q: str) -> re.Pattern:
-    # simpele OR over termen, '*' is wildcard
+    # simpele OR over termen, '*' is wildcard binnen een token (niet over whitespace)
     terms = [t for t in re.split(r"\s+", q.strip()) if t]
     if not terms:
         raise HTTPException(400, "Lege query")
-    parts = []
-    for t in terms:
-        esc = re.escape(t).replace(r"\*", r".*")
-        parts.append(esc)
-    return re.compile("|".join(parts), re.IGNORECASE)
+
+    def token_to_regex(tok: str) -> str:
+        # Normaliseer meerdere '*' achter elkaar
+        tok = re.sub(r"\*+", "*", tok)
+
+        # Escape alle niet-wildcard tekens
+        parts = [re.escape(p) for p in tok.split("*")]
+
+        # Bouw patroon waarbij '*' -> [^\s]* (blijft binnen dezelfde 'woordgroep')
+        if "*" not in tok:
+            # Exacte term als heel woord
+            core = parts[0]
+            return rf"\b{core}\b"
+
+        # Met wildcard(s): voeg boundaries toe indien zinvol
+        # Voorbeeld: 'term*' => \bterm[^\s]*
+        #           '*term' => [^\s]*term\b
+        #           'te*rm' => \bte[^\s]*rm\b (binnen woord)
+        regex = "[^\\s]*".join(parts)
+
+        starts_with_star = tok.startswith("*")
+        ends_with_star = tok.endswith("*")
+
+        if not starts_with_star:
+            regex = rf"\b{regex}"
+        if not ends_with_star:
+            regex = rf"{regex}\b"
+        return regex
+
+    patterns = [token_to_regex(t) for t in terms]
+    return re.compile("|".join(patterns), re.IGNORECASE)
 
 def _localname(tag: str) -> str:
     # strip XML-namespace
