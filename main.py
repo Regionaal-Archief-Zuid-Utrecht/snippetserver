@@ -8,13 +8,13 @@ from urllib.parse import urlparse
 app = FastAPI()
 
 class SnipReq(BaseModel):
-    url: HttpUrl   # directe .alto.xml-URL uit ES
-    q: str         # query
+    url: HttpUrl("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/031/nl-wbdrazu-k50907905-689-31947.alto.xml")   # directe .alto.xml-URL uit ES
+    q: str("belastingen")         # query
     context: int = 70  # tekens links/rechts (MVP)
 
 def _compile_pattern(q: str) -> re.Pattern:
     # simpele OR over termen, '*' is wildcard binnen een token (niet over whitespace)
-    terms = [t for t in re.split(r"\s+", q.strip()) if t]
+    terms = [t for t in re.split(r"\s+", q.strip("*")) if t]
     if not terms:
         raise HTTPException(400, "Lege query")
 
