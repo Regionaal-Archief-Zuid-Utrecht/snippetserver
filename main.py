@@ -8,8 +8,8 @@ from urllib.parse import urlparse
 app = FastAPI()
 
 class SnipReq(BaseModel):
-    url: HttpUrl   # directe .alto.xml-URL uit ES
-    q: str        # query
+    url: HttpUrl("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/031/nl-wbdrazu-k50907905-689-31947.alto.xml")   # directe .alto.xml-URL uit ES
+    q: str("belastingen")         # query
     context: int = 70  # tekens links/rechts (MVP)
 
 def _compile_pattern(q: str) -> re.Pattern:
@@ -42,14 +42,11 @@ def _compile_pattern(q: str) -> re.Pattern:
 
         if not starts_with_star:
             regex = rf"\b{regex}"
-
         if not ends_with_star:
             regex = rf"{regex}\b"
-
         return regex
 
     patterns = [token_to_regex(t) for t in terms]
-
     return re.compile("|".join(patterns), re.IGNORECASE)
 
 def _localname(tag: str) -> str:
@@ -73,93 +70,8 @@ def _host_allowed(host: Optional[str]) -> bool:
             return True
     return False
 
-def _match_pattern(query: str, text: str, context: int) -> Optional[str]: 
-    ''' takes in input the user query and the newspaper text retrieved from the alto.xml with the number of context chars to include before and after the query returns an html string '''
-    # need to add code to match both lower and uppercase
-
-    query = query.strip("*") # removing wildcards added by typescript 
-    html_snippet = None
-
-    if query[0] == "\"" and query[-1] == "\"":
-        '''logic to look for quoted strings such as "geldzaken en belastingen" '''
-        # print(query)
-        query = query.strip("\"")
-        words = query.split()
-        pattern = r'\b' + r'\s+'.join(re.escape(word) for word in words) + r'\b' # builds pattern by joining any number of words with spaces
-        re_pattern = re.compile(pattern, re.IGNORECASE)
-        match = re_pattern.search(text)
-        if match:
-            # print(match.group(0))
-            # code to include the context text before and after the match
-            start = max(0, match.start() - context) # gets text before match ensuring it doesn't go out of bounds
-            end = min(len(text), match.end() + context) # gets text after match ensuring it doesn't go out of bounds
-            pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end] # splits the text into three parts: before, match, and after to add the <em> in the html
-            html_snippet = f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}" # create the html snippet adding the <em> tag around the match
-            # print(html_snippet)
-            return html_snippet
-
-
-    else:
-        words = query.split()
-        if len(words) > 1:
-            '''logic to look for multiple words such as belastingen Utrecht '''
-            if all(re.search(rf'\b{re.escape(word)}\b', text, re.IGNORECASE) for word in words): 
-                '''check if all terms are matched in the text'''
-                html_snippet = [] # initializing a list for highlight snippets of every word in the query
-                for word in words:
-                    pattern = rf'\b{re.escape(word)}\b' # builds pattern for each word
-                    re_pattern = re.compile(pattern, re.IGNORECASE) # compiles pattern
-                    match = re_pattern.search(text) # searches for match
-                    if match:
-                        start = max(0, match.start() - context) # gets text before match ensuring it doesn't go out of bounds
-                        end = min(len(text), match.end() + context) # gets text after match ensuring it doesn't go out of bounds
-                        pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end] # splits the text into three parts: before, match, and after to add the <em> in the html
-                        html_snippet.append(f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}") # appends the html snippet to the list
-                return "<br>".join(html_snippet) # joins the list into a string
-
-            else: 
-                '''check if any of the words are matched in the text''' 
-                html_snippet = [] # initializing a list for highlight snippets of every word in the query
-                for word in words:
-                    pattern = rf'\b{re.escape(word)}\b' # builds pattern for each word
-                    re_pattern = re.compile(pattern, re.IGNORECASE) # compiles pattern
-                    match = re_pattern.search(text) # searches for match
-                    if match:
-                        start = max(0, match.start() - context) # gets text before match ensuring it doesn't go out of bounds
-                        end = min(len(text), match.end() + context) # gets text after match ensuring it doesn't go out of bounds
-                        pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end] # splits the text into three parts: before, match, and after to add the <em> in the html
-                        html_snippet.append(f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}") # appends the html snippet to the list
-                return "<br>".join(html_snippet) # joins the list into a string
-
-
-        elif len(words) == 1:
-            '''logic to look for one word such as belastingen '''
-            pattern = rf'\b{re.escape(words[0])}\b'
-            '''looks for exact match'''
-            re_pattern = re.compile(pattern, re.IGNORECASE)
-            match = re_pattern.search(text)
-            if match:
-                start = max(0, match.start() - context)
-                end = min(len(text), match.end() + context)
-                pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end]
-                html_snippet = f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}"
-                return html_snippet
-            else:
-                '''looks for term with any number of characters before and after the match'''
-                pattern = rf'\w*{re.escape(words[0])}\w*' # matches any word containing the queried word
-                re_pattern = re.compile(pattern, re.IGNORECASE)
-                match = re_pattern.search(text)
-                if match: # returns only the first matched word
-                    start = max(0, match.start() - context)
-                    end = min(len(text), match.end() + context)
-                    pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end]
-                    html_snippet = f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}"
-                    return html_snippet
-                else:
-                    return None
-
 def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
-    print(f"\nquery text = {q}")
+    pat = _compile_pattern(q)
 
     # Security: restrict to configured domains
     host = urlparse(str(url)).hostname
@@ -204,11 +116,13 @@ def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
                 # eenvoudige de-hyphenation (MVP)
                 text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
 
-                # calls the function to look for the query in the text
-                html_snippet = _match_pattern(q, text, context)
-                if html_snippet:
-                    print(f"\nhtml snippet: {html_snippet}\n")
-                    return html_snippet
+                m = pat.search(text)
+                if m:
+                    s = max(0, m.start() - context)
+                    e = min(len(text), m.end() + context)
+                    pre, hit, post = text[s:m.start()], text[m.start():m.end()], text[m.end():e]
+                    html_snip = f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}"
+                    return html_snip
 
                 buf = []
                 elem.clear()
@@ -231,47 +145,3 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
     if html_snip is None:
         return Response(status_code=204)
     return Response(content=html_snip, media_type="text/html")
-
-# tested with 
-# 1 "geldzaken en budgetbeheersing" (should match exactly 'geldzaken en budgetbeheersing')
-# 2 belastingen bedrijfsleven ( should match both words in different parts of the text)
-# 3 waking (should match 'bewaking')
-# 4 volgens (should exact match 'volgens')
-# 5 belastingen bedrijfsleven ciao (should only match 'bedrijfsleven')
-
-# 1
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q="geldzaken en budgetbeheersing"' \
-  --data-urlencode 'context=70'
-  '''
-# 2
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q=probeert bedrijfsleven' \
-  --data-urlencode 'context=70'
-  '''
-  # 3
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q=waking' \
-  --data-urlencode 'context=70'
-  '''
-  # 4
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q=volgens' \
-  --data-urlencode 'context=70'
-  '''
-  # 5
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q=volgens bedrijfsleven ciao' \
-  --data-urlencode 'context=70'
-  '''
-
-'''
-  curl --silent -i -X POST http://127.0.0.1:8000/snippet \
-  -H 'Content-Type: application/json' \
-  -d '{"url":"https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml","q":"\"geldzaken en budgetbeheersing\""}'
-  '''
