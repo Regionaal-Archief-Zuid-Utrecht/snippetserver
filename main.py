@@ -193,7 +193,7 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
         return Response(status_code=204)
     return Response(content=html_snip, media_type="text/html")
 
-# tested with 
+# tested with  
 # 1 "geldzaken en budgetbeheersing" (should match exactly 'geldzaken en budgetbeheersing')
 # 2 belastingen bedrijfsleven ( should match both words in different parts of the text)
 # 3 waking (should match 'bewaking')
