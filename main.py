@@ -1,9 +1,12 @@
+# venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, HttpUrl
 import requests, re, html, os
 from lxml import etree
 from typing import Optional, List
 from urllib.parse import urlparse
+from nltk.corpus import stopwords
 
 app = FastAPI()
 
@@ -34,91 +37,197 @@ def _host_allowed(host: Optional[str]) -> bool:
             return True
     return False
 
+
+def create_html_snippet(html_list, text, context):
+    '''
+    Create an HTML snippet from matches in html_list.
+    Highlights the words with <em> tags and extracts surrounding context.
+    '''
+    matches = html_list[0]
+
+    # Collect all start/end positions
+    starts = [m[1][0] for m in matches]
+    ends = [m[1][1] for m in matches]
+
+    # Sort matches by start index so highlighting works correctly
+    matches_sorted = sorted(matches, key=lambda m: m[1][0])
+
+    # Build highlighted string
+    highlighted_parts = []
+    last_idx = 0
+    for word, (start, end) in matches_sorted:
+        highlighted_parts.append(text[last_idx:start])  # text before match
+        highlighted_parts.append(f"<em>{text[start:end]}</em>")  # highlighted match
+        last_idx = end
+    highlighted_parts.append(text[last_idx:])  # remainder
+
+    highlighted_text = "".join(highlighted_parts)
+
+    # Extract snippet around the matches
+    html_start = max(0, min(starts) - context)
+    html_end = min(len(text), max(ends) + context)
+    snippet = highlighted_text[html_start:html_end]
+
+    # Escape HTML except for our <em> tags
+    snippet = html.escape(snippet)
+    snippet = snippet.replace("&lt;em&gt;", "<em>").replace("&lt;/em&gt;", "</em>")
+
+    return snippet
+
+stopwords = stopwords.words("dutch")
+
 def _match_pattern(query: str, text: str, context: int) -> Optional[str]: 
-    ''' takes in input the user query and the newspaper text retrieved from the alto.xml with the number of context chars to include before and after the query returns an html string '''
-    # need to add code to match both lower and uppercase
 
-    query = query.strip("*") # removing wildcards added by typescript 
-    html_snippet = None
+    '''
+    Search for query terms in OCR text and return match positions for highlighting.
 
-    if query[0] == "\"" and query[-1] == "\"":
-        '''logic to look for quoted strings such as "geldzaken en belastingen" '''
-        # print(query)
-        query = query.strip("\"")
-        words = query.split()
-        pattern = r'\b' + r'\s+'.join(re.escape(word) for word in words) + r'\b' # builds pattern by joining any number of words with spaces
-        re_pattern = re.compile(pattern, re.IGNORECASE)
-        match = re_pattern.search(text)
-        if match:
-            # print(match.group(0))
-            # code to include the context text before and after the match
-            start = max(0, match.start() - context) # gets text before match ensuring it doesn't go out of bounds
-            end = min(len(text), match.end() + context) # gets text after match ensuring it doesn't go out of bounds
-            pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end] # splits the text into three parts: before, match, and after to add the <em> in the html
-            html_snippet = f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}" # create the html snippet adding the <em> tag around the match
-            # print(html_snippet)
-            return html_snippet
+    The function attempts to find relevant matches of a user-provided query string
+    within a larger OCR-extracted text. Matching is performed in multiple tiers,
+    from most strict (exact matches) to more relaxed fallbacks:
 
+    1. **Exact phrase match**  
+       - Treats the query as a sequence of words.
+       - Looks for the exact word order, allowing non-word characters in between 
+         (to account for OCR punctuation errors, e.g. `van. het`).
 
-    else:
-        words = query.split()
-        if len(words) > 1:
-            '''logic to look for multiple words such as belastingen Utrecht '''
-            if all(re.search(rf'\b{re.escape(word)}\b', text, re.IGNORECASE) for word in words): 
-                '''check if all terms are matched in the text'''
-                html_snippet = [] # initializing a list for highlight snippets of every word in the query
-                for word in words:
-                    pattern = rf'\b{re.escape(word)}\b' # builds pattern for each word
-                    re_pattern = re.compile(pattern, re.IGNORECASE) # compiles pattern
-                    match = re_pattern.search(text) # searches for match
-                    if match:
-                        start = max(0, match.start() - context) # gets text before match ensuring it doesn't go out of bounds
-                        end = min(len(text), match.end() + context) # gets text after match ensuring it doesn't go out of bounds
-                        pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end] # splits the text into three parts: before, match, and after to add the <em> in the html
-                        html_snippet.append(f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}") # appends the html snippet to the list
-                return "<br>".join(html_snippet) # joins the list into a string
+    2. **Paragraph-level multi-word match**  
+       - Splits text into paragraphs (on newlines).
+       - Tokenizes each paragraph into words.
+       - Checks for overlap with query words.
+       - If multiple query words appear in the same paragraph, 
+         records all word matches (with absolute start–end spans).
+       - Paragraphs with more overlapping query words are ranked higher.
 
-            else: 
-                '''check if any of the words are matched in the text''' 
-                html_snippet = [] # initializing a list for highlight snippets of every word in the query
-                for word in words:
-                    pattern = rf'\b{re.escape(word)}\b' # builds pattern for each word
-                    re_pattern = re.compile(pattern, re.IGNORECASE) # compiles pattern
-                    match = re_pattern.search(text) # searches for match
-                    if match:
-                        start = max(0, match.start() - context) # gets text before match ensuring it doesn't go out of bounds
-                        end = min(len(text), match.end() + context) # gets text after match ensuring it doesn't go out of bounds
-                        pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end] # splits the text into three parts: before, match, and after to add the <em> in the html
-                        html_snippet.append(f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}") # appends the html snippet to the list
-                return "<br>".join(html_snippet) # joins the list into a string
+    3. **Single-word match**  
+       - If no multi-word matches are found, checks each query word individually:
+         - First, looks for exact whole-word matches.
+         - If none are found, falls back to:
+           - Prefix matches (`word*`) → words starting with the query term.
+           - Substring matches (`*word*`) → words containing the query term.
 
+    Args:
+        query (str): The user search string. Quotes around the query are stripped,
+            case is normalized, and stopwords are removed in fallback modes.
+        text (str): The full OCR text to search within. Assumes paragraphs are
+            separated by newlines.
+        context (int): Context window size (number of characters) used when
+            constructing snippets outside of this function.
 
-        elif len(words) == 1:
-            '''logic to look for one word such as belastingen '''
-            pattern = rf'\b{re.escape(words[0])}\b'
-            '''looks for exact match'''
-            re_pattern = re.compile(pattern, re.IGNORECASE)
-            match = re_pattern.search(text)
-            if match:
-                start = max(0, match.start() - context)
-                end = min(len(text), match.end() + context)
-                pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end]
-                html_snippet = f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}"
-                return html_snippet
-            else:
-                '''looks for term with any number of characters before and after the match'''
-                pattern = rf'\w*{re.escape(words[0])}\w*' # matches any word containing the queried word
+    Returns:
+        Optional[list]: 
+            - A list of matches, where each match group is itself a list of
+              `(word, (start, end))` tuples.
+              Example:
+                  [
+                      [('constructie', (1049, 1060)), ('Onderhoud', (1019, 1028))],
+                      [('onderhoud', (3999, 4008))]
+                  ]
+            - Returns `None` if no matches are found.
+
+    Notes:
+        - Start and end positions are absolute indices in the `text` string.
+        - The function does not directly build HTML; instead it provides spans
+          that can be wrapped with `<em>...</em>` in a later step.
+        - Matches are ordered by relevance: multi-word > single-word > wildcard.
+    '''
+
+    html_list = [] # use append inside this function and extend to the main list outside?
+    # looks for exact match of user query
+    query = query.strip("\"") # strip quotes if any
+    query = query.lower() # every character to lowercase
+    query_words = query.split() # split query in individual words
+    pattern = r"\b" + r"\W+".join(re.escape(w) for w in query_words) + r"\b" #\bword1\W+hword2\b
+    print(pattern)  
+
+    re_pattern = re.compile(pattern, re.IGNORECASE)
+    matches = re_pattern.finditer(text) # an iterable of Match objects
+    matches_list = []
+
+    for match in matches: # ultimately append each match to html_list
+        match_tuple = (match.group(), match.span()) # (van het, (start, end))
+        matches_list.append(match_tuple) # a tuple or the html directly?
+
+    if matches_list: # [("van het", (start, end)), ("van het", (start, end))]
+        html_list.extend(matches_list) # [] = matches_list
+    
+    if len(html_list) == 0: # if the list is empty = no matches yet
+        # take	out stopwords
+        print(query_words)
+        query_words = list(set(query_words) - set(stopwords))
+        print(query_words)
+
+        target_set = set(query_words)
+
+        # split text into blocks, I introduced a \n at every <TextBlock> when parsing the alto.xml
+        paragraphs = re.split(r'[\n]+', text)
+
+        matches_list= []
+        for para in paragraphs:
+            tokens = re.findall(r'\w+', para.lower())
+            overlap = target_set.intersection(tokens)
+            if overlap: # checks that a word is found
+                print(overlap)
+                print(len(overlap))
+                for word in overlap:
+                    word_pattern = re.compile(rf"\b{re.escape(word)}\b", re.IGNORECASE) # this is looking for exact match
+                    match = word_pattern.search(para) # only first match
+                    # get absolute end and start position in te text of the queries matched
+                    word = match.group()
+                    start = text.find(para) + match.start()
+                    end = text.find(para) + match.end()
+                    matches_list.append((word, (start, end))) # [("van", (start, end)), ("het", (start, end))]
+                if matches_list and len(matches_list) == len(overlap): # just a double check that exists and it got all the words 
+                    if len(html_list) == 0:
+                        html_list.insert(0, list(matches_list)) 
+                        matches_list.clear()
+                    elif len(html_list) > 0 and len(matches_list) > len(html_list[0]):
+                        html_list.insert(0, list(matches_list))# inserts new par matches at the beginning if they matched more words
+                        matches_list.clear()
+                    elif len(html_list) > 0 and len(matches_list) <= len(html_list[-1]):
+                        html_list.insert(len(html_list), list(matches_list)) # would it be the same to extend?
+                        matches_list.clear()
+        
+        if len(html_list) == 0:
+            matches_list = []
+             # Looks for words individually anywhere, first exact match 
+            for word in query_words:
+                pattern = rf'\b{re.escape(word)}\b'
+                print(pattern)
                 re_pattern = re.compile(pattern, re.IGNORECASE)
                 match = re_pattern.search(text)
-                if match: # returns only the first matched word
-                    start = max(0, match.start() - context)
-                    end = min(len(text), match.end() + context)
-                    pre, hit, post = text[start:match.start()], text[match.start():match.end()], text[match.end():end]
-                    html_snippet = f"{html.escape(pre)}<em>{html.escape(hit)}</em>{html.escape(post)}"
-                    return html_snippet
-                else:
-                    return None
+                if match:
+                    match_tuple = (match.group(), match.span()) 
+                    matches_list.append((match.group(), match.span()))
+            html_list.extend(matches_list)
+            # then wildcards
+            if len(html_list) == 0:
+                for word in query_words:
+                    pattern = rf'{re.escape(word)}\w*'
+                    print(pattern)
+                    re_pattern = re.compile(pattern, re.IGNORECASE)
+                    matches = re_pattern.search(text)
+                    if match:
+                        match_tuple = (match.group(), match.span()) 
+                        matches_list.append((match.group(), match.span()))   
+                html_list.extend(matches_list)
+                if len(html_list) == 0:
+                    for word in query_words:
+                        pattern = rf'\w*{re.escape(word)}\w*'
+                        print(pattern)
+                        re_pattern = re.compile(pattern, re.IGNORECASE)
+                        match = re_pattern.search(text)
+                        if match:
+                            match_tuple = (match.group(), match.span()) 
+                            matches_list.append((match.group(), match.span()))              
+                    html_list.extend(matches_list)
+        
+    if html_list:
+        html_snippet = create_html_snippet(html_list, text, context)
+        return html_snippet
+    else:
+        return None    
 
+    
 def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
     print(f"\nquery text = {q}")
 
@@ -154,6 +263,9 @@ def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
             if event == "start" and tag == "Page":
                 buf = []
 
+            if event == "start" and tag == "TextBlock":
+                buf.append("\n")
+
             elif event == "end" and tag == "String":
                 content = elem.get("CONTENT")
                 if content:
@@ -164,6 +276,7 @@ def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
                 text = " ".join(buf)
                 # eenvoudige de-hyphenation (MVP)
                 text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
+                print(text)
 
                 # calls the function to look for the query in the text
                 html_snippet = _match_pattern(q, text, context)
@@ -203,7 +316,7 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
 # 1
 ''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
   --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q="geldzaken en budgetbeheersing"' \
+  --data-urlencode 'q=Onderhoud constructie letterlijk' \
   --data-urlencode 'context=70'
   '''
 # 2
@@ -230,9 +343,15 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
   --data-urlencode 'q=volgens bedrijfsleven ciao' \
   --data-urlencode 'context=70'
   '''
-
+ # 6
 '''
   curl --silent -i -X POST http://127.0.0.1:8000/snippet \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml","q":"\"geldzaken en budgetbeheersing\""}'
+  '''
+ # 7
+''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
+  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/346/nl-wbdrazu-k50907905-689-346345.alto.xml' \
+  --data-urlencode 'q=Kors van Bennekom' \
+  --data-urlencode 'context=70'
   '''
