@@ -63,7 +63,7 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
         match_tuple = (match.group(), match.span()) # (van het, (start, end))
         matches_list.append(match_tuple) # a tuple or the html directly?
 
-    if matches_list: # [("van het", (start, end)), ("van het", (start, end))]
+    if matches_list and len(matches_list) == 1: # [("van het", (start, end)), ("van het", (start, end))]
         html_list.extend(matches_list) # [] = matches_list
     
     if len(html_list) == 0: # if the list is empty = no matches yet
