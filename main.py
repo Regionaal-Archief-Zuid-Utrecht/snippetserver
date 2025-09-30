@@ -43,11 +43,11 @@ def create_html_snippet(html_list, text, context):
     Highlights the words with <em> tags and extracts surrounding context.
     '''
     matches = html_list[0]
-    print(matches)
+    # print(matches)
     
-    if len(html_list) == 1:      
-        start = matches[1][0]
-        end = matches[1][1]
+    if len(matches) == 1:      
+        start = matches[0][1][0]
+        end = matches[0][1][1]
 
         # Build highlighted string
         highlighted_parts = []
@@ -162,7 +162,7 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
     query = query.lower() # every character to lowercase
     query_words = query.split() # split query in individual words
     pattern = r"\b" + r"\W+".join(re.escape(w) for w in query_words) + r"\b" #\bword1\W+hword2\b
-    # print(pattern)  
+    print(pattern)  
 
     re_pattern = re.compile(pattern, re.IGNORECASE)
     matches = re_pattern.finditer(text) # an iterable of Match objects
@@ -172,12 +172,11 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
         match_tuple = (match.group(), match.span()) # (van het, (start, end))
         matches_list.append(match_tuple) # a tuple or the html directly?
 
-    if matches_list and len(matches_list) == 1: # [("van het", (start, end)), ("van het", (start, end))]
-        # print(matches_list)
-        html_list.extend(matches_list) # [] = matches_list
-        # print(html_list)
-    elif html_list: 
-        html_list.extend(matches_list)
+    if matches_list: # [("van het", (start, end)), ("van het", (start, end))]
+        print(matches_list)
+        html_list.append(matches_list) # [] = matches_list
+        print(html_list)
+
 
     if len(html_list) == 0: # if the list is empty = no matches yet
         # take	out stopwords
@@ -227,18 +226,22 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
                 if match:
                     match_tuple = (match.group(), match.span()) 
                     matches_list.append((match.group(), match.span()))
-            html_list.extend(matches_list)
+            if matches_list:
+                html_list.append(matches_list)
+                
             # then wildcards
             if len(html_list) == 0:
                 for word in query_words:
                     pattern = rf'{re.escape(word)}\w*'
                     # print(pattern)
                     re_pattern = re.compile(pattern, re.IGNORECASE)
-                    matches = re_pattern.search(text)
+                    match = re_pattern.search(text)
                     if match:
                         match_tuple = (match.group(), match.span()) 
-                        matches_list.append((match.group(), match.span()))   
-                html_list.extend(matches_list)
+                        matches_list.append(match_tuple) 
+                if matches_list:  
+                    html_list.append(matches_list)
+
                 if len(html_list) == 0:
                     for word in query_words:
                         pattern = rf'\w*{re.escape(word)}\w*'
@@ -247,10 +250,12 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
                         match = re_pattern.search(text)
                         if match:
                             match_tuple = (match.group(), match.span()) 
-                            matches_list.append((match.group(), match.span()))              
-                    html_list.extend(matches_list)
+                            matches_list.append(match_tuple)  
+                    if matches_list:            
+                        html_list.append(matches_list)
         
     if html_list:
+        print(html_list)
         html_snippet = create_html_snippet(html_list, text, context)
         return html_snippet
     else:
@@ -368,8 +373,8 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
   '''
   # 5
 ''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q=volgens bedrijfsleven ciao' \
+  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/407/nl-wbdrazu-k50907905-689-407001.alto.xml \
+  --data-urlencode 'q=water' \
   --data-urlencode 'context=70'
   '''
  # 6
@@ -393,4 +398,4 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
 
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/808/nl-wbdrazu-k50907905-689-808239.alto.xml", "lager onderwijs", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/408/nl-wbdrazu-k50907905-689-408918.alto.xml", "lager onderwijs", 70))
-# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/542/nl-wbdrazu-k50907905-689-542690.alto.xml", "lager onderwijs", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/820/nl-wbdrazu-k50907905-689-820075.alto.xml", "water", 70))
