@@ -43,8 +43,7 @@ def create_html_snippet(html_list, text, context):
     Highlights the words with <em> tags and extracts surrounding context.
     '''
     matches = html_list[0]
-    # print(matches)
-    
+
     if len(matches) == 1:      
         start = matches[0][1][0]
         end = matches[0][1][1]
@@ -81,21 +80,27 @@ def create_html_snippet(html_list, text, context):
         highlighted_parts = []
         last_idx = 0
         for word, (start, end) in matches_sorted:
+            if last_idx > 0 and len(text[last_idx:start]) > 140: # cut longwr paragraphs
+                highlighted_parts.append(text[last_idx:last_idx+70])
+                highlighted_parts.append("...")
+                last_idx = start-70
             highlighted_parts.append(text[last_idx:start])  # text before match
             highlighted_parts.append(f"<em>{text[start:end]}</em>")  # highlighted match
             last_idx = end
-        highlighted_parts.append(text[last_idx:])  # remainder
+        highlighted_parts.append(text[last_idx:last_idx+70])  # remainder
 
         highlighted_text = "".join(highlighted_parts)
 
         # Extract snippet around the matches
         html_start = max(0, min(starts) - context)
-        html_end = min(len(text), max(ends) + context)
-        snippet = highlighted_text[html_start:html_end]
+        # html_end = min(len(text), max(ends) + context)
+        snippet = highlighted_text[html_start:]
 
     # Escape HTML except for our <em> tags
     snippet = html.escape(snippet)
     snippet = snippet.replace("&lt;em&gt;", "<em>").replace("&lt;/em&gt;", "</em>")
+    if len(snippet) > 200:
+        snippet = snippet[:300]
 
     return snippet
 
@@ -162,7 +167,6 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
     query = query.lower() # every character to lowercase
     query_words = query.split() # split query in individual words
     pattern = r"\b" + r"\W+".join(re.escape(w) for w in query_words) + r"\b" #\bword1\W+hword2\b
-    print(pattern)  
 
     re_pattern = re.compile(pattern, re.IGNORECASE)
     matches = re_pattern.finditer(text) # an iterable of Match objects
@@ -173,16 +177,12 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
         matches_list.append(match_tuple) # a tuple or the html directly?
 
     if matches_list: # [("van het", (start, end)), ("van het", (start, end))]
-        print(matches_list)
         html_list.append(matches_list) # [] = matches_list
-        print(html_list)
 
 
     if len(html_list) == 0: # if the list is empty = no matches yet
         # take	out stopwords
-        # print(query_words)
         query_words = list(set(query_words) - set(stopwords))
-        # print(query_words)
 
         target_set = set(query_words)
 
@@ -194,8 +194,6 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
             tokens = re.findall(r'\w+', para.lower())
             overlap = target_set.intersection(tokens)
             if overlap: # checks that a word is found
-                # print(overlap)
-                # print(len(overlap))
                 for word in overlap:
                     word_pattern = re.compile(rf"\b{re.escape(word)}\b", re.IGNORECASE) # this is looking for exact match
                     match = word_pattern.search(para) # only first match
@@ -220,7 +218,6 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
              # Looks for words individually anywhere, first exact match 
             for word in query_words:
                 pattern = rf'\b{re.escape(word)}\b'
-                # print(pattern)
                 re_pattern = re.compile(pattern, re.IGNORECASE)
                 match = re_pattern.search(text)
                 if match:
@@ -233,7 +230,6 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
             if len(html_list) == 0:
                 for word in query_words:
                     pattern = rf'{re.escape(word)}\w*'
-                    # print(pattern)
                     re_pattern = re.compile(pattern, re.IGNORECASE)
                     match = re_pattern.search(text)
                     if match:
@@ -245,7 +241,6 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
                 if len(html_list) == 0:
                     for word in query_words:
                         pattern = rf'\w*{re.escape(word)}\w*'
-                        # print(pattern)
                         re_pattern = re.compile(pattern, re.IGNORECASE)
                         match = re_pattern.search(text)
                         if match:
@@ -255,7 +250,6 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
                         html_list.append(matches_list)
         
     if html_list:
-        print(html_list)
         html_snippet = create_html_snippet(html_list, text, context)
         return html_snippet
     else:
@@ -263,7 +257,6 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
 
     
 def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
-    # print(f"\nquery text = {q}")
 
     # Security: restrict to configured domains
     host = urlparse(str(url)).hostname
@@ -310,12 +303,10 @@ def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
                 text = " ".join(buf)
                 # eenvoudige de-hyphenation (MVP)
                 text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
-                # print(text)
 
                 # calls the function to look for the query in the text
                 html_snippet = _match_pattern(q, text, context)
                 if html_snippet:
-                    # print(f"\nhtml snippet: {html_snippet}\n")
                     return html_snippet
 
                 buf = []
@@ -396,6 +387,11 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
   --data-urlencode 'context=70'
   '''
 
-# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/808/nl-wbdrazu-k50907905-689-808239.alto.xml", "lager onderwijs", 70))
-# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/408/nl-wbdrazu-k50907905-689-408918.alto.xml", "lager onderwijs", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/407/nl-wbdrazu-k50907905-689-407001.alto.xml", "water", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/811/nl-wbdrazu-k50907905-689-811181.alto.xml", "water", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/415/nl-wbdrazu-k50907905-689-415890.alto.xml", "bennekom", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/820/nl-wbdrazu-k50907905-689-820075.alto.xml", "water", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/820/nl-wbdrazu-k50907905-689-820075.alto.xml", "water vertegen", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/808/nl-wbdrazu-k50907905-689-808239.alto.xml", "uitgebreid lager onderwijs", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/953/nl-wbdrazu-k50907905-689-953329.alto.xml", "uitgebreid lager onderwijs", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/589/nl-wbdrazu-k50907905-689-589717.alto.xml", "vriend hoog", 70))
