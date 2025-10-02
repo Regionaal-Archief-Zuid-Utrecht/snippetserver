@@ -82,7 +82,7 @@ def create_html_snippet(html_list, text, context):
         for word, (start, end) in matches_sorted:
             if last_idx > 0 and len(text[last_idx:start]) > 140: # cut longwr paragraphs
                 highlighted_parts.append(text[last_idx:last_idx+70])
-                highlighted_parts.append("...")
+                highlighted_parts.append(" [...] ")
                 last_idx = start-70
             highlighted_parts.append(text[last_idx:start])  # text before match
             highlighted_parts.append(f"<em>{text[start:end]}</em>")  # highlighted match
