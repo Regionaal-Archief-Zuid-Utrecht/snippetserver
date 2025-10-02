@@ -87,7 +87,7 @@ def create_html_snippet(html_list, text, context):
             highlighted_parts.append(text[last_idx:start])  # text before match
             highlighted_parts.append(f"<em>{text[start:end]}</em>")  # highlighted match
             last_idx = end
-        highlighted_parts.append(text[last_idx:last_idx+70])  # remainder
+        highlighted_parts.append(text[last_idx:last_idx+100])  # remainder
 
         highlighted_text = "".join(highlighted_parts)
 
