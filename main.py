@@ -99,7 +99,7 @@ def create_html_snippet(html_list, text, context):
     # Escape HTML except for our <em> tags
     snippet = html.escape(snippet)
     snippet = snippet.replace("&lt;em&gt;", "<em>").replace("&lt;/em&gt;", "</em>")
-    if len(snippet) > 200:
+    if len(snippet) > 300:
         snippet = snippet[:300]
 
     return snippet
