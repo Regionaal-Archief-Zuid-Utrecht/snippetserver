@@ -331,61 +331,7 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
         return Response(status_code=204)
     return Response(content=html_snip, media_type="text/html")
 
-# tested with  
-# 1 "geldzaken en budgetbeheersing" (should match exactly 'geldzaken en budgetbeheersing')
-# 2 belastingen bedrijfsleven ( should match both words in different parts of the text)
-# 3 waking (should match 'bewaking')
-# 4 volgens (should exact match 'volgens')
-# 5 belastingen bedrijfsleven ciao (should only match 'bedrijfsleven')
-
-# 1
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q=Onderhoud constructie letterlijk' \
-  --data-urlencode 'context=70'
-  '''
-# 2
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/808/nl-wbdrazu-k50907905-689-808239.alto.xml' \
-  --data-urlencode 'q=lager onderwijs' \
-  --data-urlencode 'context=70'
-  '''
-  # 3
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q=waking' \
-  --data-urlencode 'context=70'
-  '''
-  # 4
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml' \
-  --data-urlencode 'q=volgens' \
-  --data-urlencode 'context=70'
-  '''
-  # 5
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/407/nl-wbdrazu-k50907905-689-407001.alto.xml \
-  --data-urlencode 'q=water' \
-  --data-urlencode 'context=70'
-  '''
- # 6
-'''
-  curl --silent -i -X POST http://127.0.0.1:8000/snippet \
-  -H 'Content-Type: application/json' \
-  -d '{"url":"https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/001/169/nl-wbdrazu-k50907905-689-1169654.alto.xml","q":"\"geldzaken en budgetbeheersing\""}'
-  '''
- # 7
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/775/nl-wbdrazu-k50907905-689-775150.alto.xml' \
-  --data-urlencode 'q=Kors van Bennekom' \
-  --data-urlencode 'context=70'
-  '''
-# 8
-''' curl --silent -i --get 'http://127.0.0.1:8000/snippet' \
-  --data-urlencode 'url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/408/nl-wbdrazu-k50907905-689-408918.alto.xml' \
-  --data-urlencode 'q=lager onderwijs' \
-  --data-urlencode 'context=70'
-  '''
+# TESTS
 
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/407/nl-wbdrazu-k50907905-689-407001.alto.xml", "water", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/811/nl-wbdrazu-k50907905-689-811181.alto.xml", "water", 70))
