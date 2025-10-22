@@ -321,14 +321,14 @@ def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
 def snippet(req: SnipReq):
     html_snip = _find_snippet(req.url, req.q, req.context)
     if html_snip is None:
-        return Response(status_code=204)
+        return {"html": None}
     return {"html": html_snip}
 
 @app.get("/snippet")
 def snippet_get(url: HttpUrl, q: str, context: int = 70):
     html_snip = _find_snippet(url, q, context)
     if html_snip is None:
-        return Response(status_code=204)
+        return {"html": None}
     return Response(content=html_snip, media_type="text/html")
 
 # TESTS
@@ -338,6 +338,7 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/415/nl-wbdrazu-k50907905-689-415890.alto.xml", "bennekom", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/820/nl-wbdrazu-k50907905-689-820075.alto.xml", "water", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/820/nl-wbdrazu-k50907905-689-820075.alto.xml", "water vertegen", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/785/nl-wbdrazu-k50907905-689-785445.alto.xml", "water vertegen", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/808/nl-wbdrazu-k50907905-689-808239.alto.xml", "uitgebreid lager onderwijs", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/953/nl-wbdrazu-k50907905-689-953329.alto.xml", "uitgebreid lager onderwijs", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/589/nl-wbdrazu-k50907905-689-589717.alto.xml", "vriend hoog", 70))
