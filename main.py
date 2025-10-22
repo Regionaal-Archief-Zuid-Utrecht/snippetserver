@@ -256,12 +256,8 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
     else:
         return None    
 
-ns = {
-    'alto': 'http://www.loc.gov/standards/alto/ns-v3#',
-    'a': 'http://www.loc.gov/standards/alto/ns-v3#'
-}
 
-def _find_snippet(url: HttpUrl, ns, q: str, context: int):
+def _find_snippet(url: HttpUrl, q: str, context: int):
     # Security: restrict to configured domains
     host = urlparse(str(url)).hostname
     if not _host_allowed(host):
@@ -296,7 +292,7 @@ def _find_snippet(url: HttpUrl, ns, q: str, context: int):
                 current_page_sentences = []
 
             elif event == "end" and tag == "TextLine":
-                strings = elem.findall(".//alto:String", ns)
+                strings = elem.findall(".//alto:String",  {'alto': 'http://www.loc.gov/standards/alto/ns-v3#', 'a': 'http://www.loc.gov/standards/alto/ns-v3#'})
                 if not strings:
                     elem.clear()
                     continue
@@ -346,11 +342,11 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
 
 # TESTS
 
-# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/407/nl-wbdrazu-k50907905-689-407001.alto.xml",ns, "water", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/407/nl-wbdrazu-k50907905-689-407001.alto.xml", "water", 70))
 # print(shannon_entropy("25 Bakkerij oi falke af op ape fe afaik a aaf aja aj ae aaf ae aaa ok aj op ap af ape aja af aj af af af ape af afp ape aes sja aja a af aak ok af aje sj sj afne B Skell"))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/862/nl-wbdrazu-k50907905-689-862690.alto.xml", "water", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/811/nl-wbdrazu-k50907905-689-811181.alto.xml", "water", 70))
-# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/415/nl-wbdrazu-k50907905-689-415890.alto.xml", ns, "bennekom", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/415/nl-wbdrazu-k50907905-689-415890.alto.xml", "bennekom", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/820/nl-wbdrazu-k50907905-689-820075.alto.xml", "water", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/820/nl-wbdrazu-k50907905-689-820075.alto.xml", "water vertegen", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/785/nl-wbdrazu-k50907905-689-785445.alto.xml", "water vertegen", 70))
