@@ -6,10 +6,10 @@ import requests, re, html, os
 from lxml import etree
 from typing import Optional, List
 from urllib.parse import urlparse
-import math
-from collections import Counter
+import spacy
 
 app = FastAPI()
+nlp = spacy.load("nl_core_news_sm")
 
 class SnipReq(BaseModel):
     url: HttpUrl   # directe .alto.xml-URL uit ES
@@ -298,20 +298,30 @@ def _find_snippet(url: HttpUrl, q: str, context: int):
                     continue
 
                 words = [s.get("CONTENT", "") for s in strings if s.get("CONTENT")]
-                wc_values = [float(s.get("WC", 1)) for s in strings if s.get("WC")]
-                avg_wc = sum(wc_values) / len(wc_values) if wc_values else 1
+                sentence = " ".join(words)
+                doc = nlp(sentence)
 
-                # keep only sufficiently confident lines to clean gibberish
-                if avg_wc >= 0.68:
-                    sentence = " ".join(words)
+                doc_text = "".join([t.text for t in doc])
+                alpha_ratio = sum(c.isalpha() for c in doc_text) / max(len(doc_text), 1)
+                token_validity = sum(1 for t in doc if t.is_alpha) / max(len(doc), 1)
+
+                if alpha_ratio >= 0.68 and token_validity >= 0.50: # can try tiggling thresholds
                     current_page_sentences.append(sentence)
+                    
+                # wc_values = [float(s.get("WC", 1)) for s in strings if s.get("WC")]
+                # avg_wc = sum(wc_values) / len(wc_values) if wc_values else 1
+
+                # # keep only sufficiently confident lines to clean gibberish
+                # if avg_wc >= 0.68:
+                #     sentence = " ".join(words)
+                #     current_page_sentences.append(sentence)
 
                 elem.clear()
 
             elif event == "end" and tag == "Page":
                 text = "\n".join(current_page_sentences)
                 text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
-                text = re.sub(r"[^A-Za-z0-9\s.,!?;:'\"-]", "", text) # cleaning gibberish
+                text = re.sub(r"[^A-Za-z0-9\s.,!?;:'\"-]", "", text, flags=re.UNICODE) # cleaning gibberish
 
                 # look for query match
                 html_snippet = _match_pattern(q, text, context)
@@ -353,3 +363,4 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/808/nl-wbdrazu-k50907905-689-808239.alto.xml", "uitgebreid lager onderwijs", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/953/nl-wbdrazu-k50907905-689-953329.alto.xml", "uitgebreid lager onderwijs", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/589/nl-wbdrazu-k50907905-689-589717.alto.xml", "vriend hoog", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/970/nl-wbdrazu-k50907905-689-970827.alto.xml", "Voordeliger", 70))
