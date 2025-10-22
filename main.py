@@ -346,7 +346,7 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
 
 # TESTS
 
-print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/407/nl-wbdrazu-k50907905-689-407001.alto.xml",ns, "water", 70))
+# print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/407/nl-wbdrazu-k50907905-689-407001.alto.xml",ns, "water", 70))
 # print(shannon_entropy("25 Bakkerij oi falke af op ape fe afaik a aaf aja aj ae aaf ae aaa ok aj op ap af ape aja af aj af af af ape af afp ape aes sja aja a af aak ok af aje sj sj afne B Skell"))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/862/nl-wbdrazu-k50907905-689-862690.alto.xml", "water", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/811/nl-wbdrazu-k50907905-689-811181.alto.xml", "water", 70))
