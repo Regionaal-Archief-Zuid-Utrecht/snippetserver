@@ -257,7 +257,7 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
         return None    
 
 
-def _find_snippet(url: HttpUrl, q: str, context: int):
+def _find_snippet(url, q, context):
     # Security: restrict to configured domains
     host = urlparse(str(url)).hostname
     if not _host_allowed(host):
@@ -292,36 +292,26 @@ def _find_snippet(url: HttpUrl, q: str, context: int):
                 current_page_sentences = []
 
             elif event == "end" and tag == "TextLine":
-                strings = elem.findall(".//alto:String",  {'alto': 'http://www.loc.gov/standards/alto/ns-v3#', 'a': 'http://www.loc.gov/standards/alto/ns-v3#'})
+                strings = elem.findall(".//alto:String", {'alto': 'http://www.loc.gov/standards/alto/ns-v3#', 'a': 'http://www.loc.gov/standards/alto/ns-v3#'})
                 if not strings:
                     elem.clear()
                     continue
 
                 words = [s.get("CONTENT", "") for s in strings if s.get("CONTENT")]
-                sentence = " ".join(words)
-                doc = nlp(sentence)
+                wc_values = [float(s.get("WC", 1)) for s in strings if s.get("WC")]
+                avg_wc = sum(wc_values) / len(wc_values) if wc_values else 1
 
-                doc_text = "".join([t.text for t in doc])
-                alpha_ratio = sum(c.isalpha() for c in doc_text) / max(len(doc_text), 1)
-                token_validity = sum(1 for t in doc if t.is_alpha) / max(len(doc), 1)
-
-                if alpha_ratio >= 0.68 and token_validity >= 0.50: # can try tiggling thresholds
+                # keep only sufficiently confident lines to clean gibberish
+                if avg_wc >= 0.68:
+                    sentence = " ".join(words)
                     current_page_sentences.append(sentence)
-                    
-                # wc_values = [float(s.get("WC", 1)) for s in strings if s.get("WC")]
-                # avg_wc = sum(wc_values) / len(wc_values) if wc_values else 1
-
-                # # keep only sufficiently confident lines to clean gibberish
-                # if avg_wc >= 0.68:
-                #     sentence = " ".join(words)
-                #     current_page_sentences.append(sentence)
 
                 elem.clear()
 
             elif event == "end" and tag == "Page":
                 text = "\n".join(current_page_sentences)
                 text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
-                text = re.sub(r"[^A-Za-z0-9\s.,!?;:'\"-]", "", text, flags=re.UNICODE) # cleaning gibberish
+                text = re.sub(r"[^A-Za-z0-9\s.,!?;:'\"-]", "", text) # cleaning gibberish
 
                 # look for query match
                 html_snippet = _match_pattern(q, text, context)
@@ -335,6 +325,7 @@ def _find_snippet(url: HttpUrl, q: str, context: int):
         raise HTTPException(502, "Parse error")
 
     return None
+
 
 @app.post("/snippet")
 def snippet(req: SnipReq):
@@ -353,7 +344,6 @@ def snippet_get(url: HttpUrl, q: str, context: int = 70):
 # TESTS
 
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/407/nl-wbdrazu-k50907905-689-407001.alto.xml", "water", 70))
-# print(shannon_entropy("25 Bakkerij oi falke af op ape fe afaik a aaf aja aj ae aaf ae aaa ok aj op ap af ape aja af aj af af af ape af afp ape aes sja aja a af aak ok af aje sj sj afne B Skell"))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/862/nl-wbdrazu-k50907905-689-862690.alto.xml", "water", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/811/nl-wbdrazu-k50907905-689-811181.alto.xml", "water", 70))
 # print(_find_snippet("https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/415/nl-wbdrazu-k50907905-689-415890.alto.xml", "bennekom", 70))
