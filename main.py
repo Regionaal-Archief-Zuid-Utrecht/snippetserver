@@ -257,7 +257,8 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
         return None    
 
 
-def _find_snippet(url, q, context):
+def _find_snippet(url: HttpUrl, q: str, context: int) -> Optional[str]:
+
     # Security: restrict to configured domains
     host = urlparse(str(url)).hostname
     if not _host_allowed(host):
@@ -268,52 +269,44 @@ def _find_snippet(url, q, context):
             url, timeout=12, stream=True,
             headers={"Accept-Encoding": "gzip, deflate, br"}
         )
-        r.raise_for_status()
     except requests.RequestException:
         raise HTTPException(502, "Fetch failed")
-
     if r.status_code in (403, 404):
         raise HTTPException(403, "Not public")
     if r.status_code != 200:
         raise HTTPException(502, "Upstream error")
 
+    # Laat requests de gzip decompresseren terwijl we streamen
     r.raw.decode_content = True
 
+    # Accumuleer tekst per Page; stop bij eerste match
     buf = []
-    current_page_sentences = []
-
     try:
         for event, elem in etree.iterparse(
-            r.raw, events=("start", "end"), recover=True, huge_tree=True
+            r.raw, events=("start", "end"),
+            recover=True, huge_tree=True
         ):
             tag = _localname(elem.tag)
 
             if event == "start" and tag == "Page":
-                current_page_sentences = []
+                buf = []
 
-            elif event == "end" and tag == "TextLine":
-                strings = elem.findall(".//alto:String", {'alto': 'http://www.loc.gov/standards/alto/ns-v3#', 'a': 'http://www.loc.gov/standards/alto/ns-v3#'})
-                if not strings:
-                    elem.clear()
-                    continue
+            if event == "start" and tag == "TextBlock":
+                buf.append("\n")
 
-                words = [s.get("CONTENT", "") for s in strings if s.get("CONTENT")]
-                wc_values = [float(s.get("WC", 1)) for s in strings if s.get("WC")]
-                avg_wc = sum(wc_values) / len(wc_values) if wc_values else 1
-
-                # keep only sufficiently confident lines to clean gibberish
-                if avg_wc >= 0.68:
-                    sentence = " ".join(words)
-                    current_page_sentences.append(sentence)
-
+            elif event == "end" and tag == "String":
+                content = elem.get("CONTENT")
+                if content:
+                    buf.append(content)
                 elem.clear()
 
             elif event == "end" and tag == "Page":
-                text = "\n".join(current_page_sentences)
+                text = " ".join(buf)
+                # eenvoudige de-hyphenation (MVP)
                 text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
-                text = re.sub(r"[^A-Za-z0-9\s.,!?;:'\"-]", "", text) # cleaning gibberish
+                text = re.sub(r"[^A-Za-z0-9\s.,!?;:'\"-]", "", text, flags=re.UNICODE) # cleaning gibberish
 
-                # look for query match
+                # calls the function to look for the query in the text
                 html_snippet = _match_pattern(q, text, context)
                 if html_snippet:
                     return html_snippet
@@ -325,6 +318,7 @@ def _find_snippet(url, q, context):
         raise HTTPException(502, "Parse error")
 
     return None
+
 
 @app.post("/snippet")
 def snippet(req: SnipReq):
