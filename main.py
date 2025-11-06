@@ -6,10 +6,8 @@ import requests, re, html, os
 from lxml import etree
 from typing import Optional, List
 from urllib.parse import urlparse
-import spacy
 
 app = FastAPI()
-nlp = spacy.load("nl_core_news_sm")
 
 class SnipReq(BaseModel):
     url: HttpUrl   # directe .alto.xml-URL uit ES
