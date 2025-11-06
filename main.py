@@ -162,7 +162,7 @@ def _match_pattern(query: str, text: str, context: int) -> Optional[str]:
 
     html_list = [] # use append inside this function and extend to the main list outside?
     # looks for exact match of user query
-    query = query.strip("\"*+?'") # strip quotes and wildcards from search term
+    query = query.strip("\"*+?' ") # strip quotes and wildcards from search term
     query = query.lower() # every character to lowercase
     query_words = query.split() # split query in individual words
     pattern = r"\b" + r"\W+".join(re.escape(w) for w in query_words) + r"\b" #\bword1\W+hword2\b
