@@ -2,7 +2,24 @@
 
 Een eerste aanzet voor een snippetserver, nu voor alto.xml.
 
-## Installatie ##
+## Docker ##
+
+Build image and start the server:
+
+```bash
+docker build -t snippetserver .
+docker run -d -p 8000:8000 --env ALLOWED_HOSTS=opslag.razu.nl snippetserver
+``` 
+
+once you generated a hash for your container you can stop it and start it:
+```bash
+docker stop <container_id>
+docker start <container_id>
+```
+
+(for testing see ## Testen ## below)
+
+## Installatie zonder Docker ##
 
 Gebruik een virtualenv:
 
@@ -52,6 +69,10 @@ curl --silent -i -X POST http://127.0.0.1:8000/snippet \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/031/nl-wbdrazu-k50907905-689-31947.alto.xml","q":"belastingen"}'
 ```
+
+Or directly in the browser: 
+- http://127.0.0.1:8000/snippet?url=https://k50907905.opslag.razu.nl/nl-wbdrazu/k50907905/689/000/031/nl-wbdrazu-k50907905-689-31947.alto.xml&q=belastingen&context=70
+
 
 ## Responses ##
 
