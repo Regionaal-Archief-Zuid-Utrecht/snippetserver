@@ -8,7 +8,10 @@ Build image and start the server:
 
 ```bash
 docker build -t snippetserver .
-docker run -d -p 8000:8000 --env ALLOWED_HOSTS=opslag.razu.nl snippetserver
+docker run -d -p 8000:8000 \
+  --env ALLOWED_HOSTS=opslag.razu.nl \
+  --env CORS_ALLOWED_ORIGINS=http://linuc.local:8081,https://ontwikkel.viewer.razu.nl,https://viewer.razu.nl \
+  snippetserver
 ``` 
 
 once you generated a hash for your container you can stop it and start it:
@@ -40,7 +43,14 @@ venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
 Sta alleen requests toe naar bepaalde domeinen (security):
 
-- Omgevingsvariabele: `ALLOWED_HOSTS` (comma-separated)
+- `ALLOWED_HOSTS`: toegestane upstream-domeinen (kommagescheiden)
+- `CORS_ALLOWED_ORIGINS`: toegestane browser-origins (kommagescheiden, zonder wildcard)
+
+Standaard zijn de volgende CORS-origins toegestaan:
+
+- `http://linuc.local:8081`
+- `https://ontwikkel.viewer.razu.nl`
+- `https://viewer.razu.nl`
 
 Voorbeelden:
 
@@ -50,6 +60,9 @@ export ALLOWED_HOSTS=opslag.razu.nl
 
 # Meerdere domeinen toestaan
 export ALLOWED_HOSTS=opslag.razu.nl,example.org
+
+# Browser-origins expliciet instellen
+export CORS_ALLOWED_ORIGINS=http://linuc.local:8081,https://ontwikkel.viewer.razu.nl,https://viewer.razu.nl
 
 # Start daarna
 venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --reload
@@ -115,7 +128,9 @@ Of via query parameters:
      hx-swap="innerHTML"></div>
 ```
 
-## Nginx (rate-limit + CORS) ##
+## Nginx (rate-limit) ##
+
+CORS wordt door de FastAPI-app afgehandeld.
 
 ```nginx
 # http {}
@@ -125,9 +140,6 @@ limit_req_zone $binary_remote_addr zone=snip:10m rate=5r/s;
 location /snippet {
   limit_req zone=snip burst=20 nodelay;
   proxy_pass http://127.0.0.1:8000;
-  add_header Access-Control-Allow-Origin *;
-  add_header Access-Control-Allow-Headers Content-Type;
-  if ($request_method = OPTIONS) { return 204; }
 }
 
 ```   

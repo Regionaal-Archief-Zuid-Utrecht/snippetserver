@@ -1,6 +1,7 @@
 # venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 import requests, re, html, os
 from lxml import etree
@@ -8,6 +9,23 @@ from typing import Optional, List
 from urllib.parse import urlparse
 
 app = FastAPI()
+
+cors_allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://linuc.local:8081,https://ontwikkel.viewer.razu.nl,https://viewer.razu.nl",
+    ).split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_allowed_origins,
+    allow_credentials=False,
+    allow_methods=["POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
 
 class SnipReq(BaseModel):
     url: HttpUrl   # directe .alto.xml-URL uit ES
