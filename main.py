@@ -12,10 +12,7 @@ app = FastAPI()
 
 cors_allowed_origins = [
     origin.strip()
-    for origin in os.getenv(
-        "CORS_ALLOWED_ORIGINS",
-        "http://linuc.local:8081,https://ontwikkel.viewer.razu.nl,https://viewer.razu.nl",
-    ).split(",")
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]
 

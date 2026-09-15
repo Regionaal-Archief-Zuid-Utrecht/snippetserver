@@ -46,11 +46,7 @@ Sta alleen requests toe naar bepaalde domeinen (security):
 - `ALLOWED_HOSTS`: toegestane upstream-domeinen (kommagescheiden)
 - `CORS_ALLOWED_ORIGINS`: toegestane browser-origins (kommagescheiden, zonder wildcard)
 
-Standaard zijn de volgende CORS-origins toegestaan:
-
-- `http://linuc.local:8081`
-- `https://ontwikkel.viewer.razu.nl`
-- `https://viewer.razu.nl`
+Zonder `CORS_ALLOWED_ORIGINS` worden geen cross-origin browserrequests toegestaan. Configureer de benodigde origins expliciet.
 
 Voorbeelden:
 

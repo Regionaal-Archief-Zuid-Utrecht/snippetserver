@@ -1,7 +1,10 @@
 import asyncio
+import os
 import unittest
+from unittest.mock import patch
 
-from main import app
+with patch.dict(os.environ, {"CORS_ALLOWED_ORIGINS": "https://ontwikkel.viewer.razu.nl"}):
+    from main import app
 
 
 async def preflight(origin):
